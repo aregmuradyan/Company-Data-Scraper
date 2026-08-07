@@ -1,12 +1,17 @@
 package com.polixis.companysearch.service;
 
+import com.polixis.companysearch.model.Company;
+import com.polixis.companysearch.model.Officer;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
+import org.jsoup.select.Elements;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
 import java.sql.SQLOutput;
+import java.util.ArrayList;
+import java.util.List;
 
 @Service
 public class CompanySearchService {
@@ -34,12 +39,17 @@ public class CompanySearchService {
                         "https://find-and-update.company-information.service.gov.uk"
                                 + companyUrl;
 
+                String officersUrl = fullCompanyUrl + "/officers";
+
                 Document companyDocument = Jsoup.connect(fullCompanyUrl)
                         .userAgent("Company-Search-Service/1.0")
                         .get();
 
+                Document officersDocument = (Document) Jsoup.connect(officersUrl)
+                        .userAgent("Company-Search-Service/1.0")
+                        .get();
+
                 System.out.println(companyDocument.title());
-                System.out.println(companyDocument.html());
                 Element statusElement = companyDocument.selectFirst("#company-status");
                 String status = statusElement != null ? statusElement.text() : null;
 
@@ -52,8 +62,24 @@ public class CompanySearchService {
                 Element creationDateElement = companyDocument.selectFirst("#company-creation-date");
                 String creationDate = creationDateElement != null ? creationDateElement.text() : null;
 
-                System.out.println("Status: " + status);
-                System.out.println("Address: " + address);
+                Elements appointments = officersDocument.select(".appointments-list > div");
+                List<Officer> officers = new ArrayList<>();
+                for (Element appointment : appointments) {
+
+                    Element nameElement = appointment.selectFirst("[id^=officer-name-]");
+                    Element roleElement = appointment.selectFirst("[id^=officer-role-]");
+                    Element appointedElement = appointment.selectFirst("[id^=officer-appointed-on-]");
+
+                    String name = nameElement != null ? nameElement.text() : null;
+                    String role = roleElement != null ? roleElement.text() : null;
+                    String appointedOn = appointedElement != null ? appointedElement.text() : null;
+
+                    Officer officer = new Officer(name, role, appointedOn);
+
+                    officers.add(officer);
+
+                }
+
 
 
                 Element meta = result.selectFirst("p.meta.crumbtrail");
@@ -64,12 +90,17 @@ public class CompanySearchService {
                     companyNumber = metaText.split(" - ")[0];
                 }
 
-                System.out.println("Name: " + companyName);
-                System.out.println("Number: " + companyNumber);
-                System.out.println("URL: " + companyUrl);
-                System.out.println("Company Type: " + companyType);
-                System.out.println("Creation Date: " + creationDate);
-                System.out.println();
+                Company company = new Company(
+                        companyNumber,
+                        companyName,
+                        status,
+                        companyType,
+                        creationDate,
+                        address,
+                        officers
+                );
+
+                System.out.println(company);
             }
             break;
         }
