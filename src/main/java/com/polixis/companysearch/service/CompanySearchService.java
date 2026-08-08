@@ -2,6 +2,7 @@ package com.polixis.companysearch.service;
 
 import com.polixis.companysearch.model.Company;
 import com.polixis.companysearch.model.Officer;
+import com.polixis.companysearch.model.Psc;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
@@ -41,6 +42,8 @@ public class CompanySearchService {
 
                 String officersUrl = fullCompanyUrl + "/officers";
 
+                String pscUrl = fullCompanyUrl + "/persons-with-significant-control";
+
                 Document companyDocument = Jsoup.connect(fullCompanyUrl)
                         .userAgent("Company-Search-Service/1.0")
                         .get();
@@ -48,6 +51,11 @@ public class CompanySearchService {
                 Document officersDocument = (Document) Jsoup.connect(officersUrl)
                         .userAgent("Company-Search-Service/1.0")
                         .get();
+
+                Document pscDocument = Jsoup.connect(pscUrl)
+                        .userAgent("Company-Search-Service/1.0")
+                        .get();
+
 
                 System.out.println(companyDocument.title());
                 Element statusElement = companyDocument.selectFirst("#company-status");
@@ -80,7 +88,20 @@ public class CompanySearchService {
 
                 }
 
+                Elements pscElements = pscDocument.select(".appointments-list > div");
+                List<Psc> pscs = new ArrayList<>();
 
+                for (Element pscElement : pscElements) {
+                    Element nameElement = pscElement.selectFirst("[id^=psc-name-]");
+                    Element natureOfControlElement = pscElement.selectFirst("[id^=psc-noc-]");
+
+                    String name = nameElement != null ? nameElement.text() : null;
+                    String natureOfControl = natureOfControlElement != null
+                            ? natureOfControlElement.text()
+                            : null;
+
+                    pscs.add(new Psc(name, natureOfControl));
+                }
 
                 Element meta = result.selectFirst("p.meta.crumbtrail");
                 String companyNumber = "";
@@ -97,12 +118,12 @@ public class CompanySearchService {
                         companyType,
                         creationDate,
                         address,
-                        officers
+                        officers,
+                        pscs
                 );
 
                 System.out.println(company);
             }
-            break;
         }
         return "Found " + results.size() + " results";
     }

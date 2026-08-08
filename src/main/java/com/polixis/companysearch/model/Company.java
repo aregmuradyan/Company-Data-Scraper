@@ -18,4 +18,5 @@ public class Company {
     private String incorporationDate;
     private String registeredOfficeAddress;
     private List<Officer> officers;
+    private List<Psc> pscs;
 }
