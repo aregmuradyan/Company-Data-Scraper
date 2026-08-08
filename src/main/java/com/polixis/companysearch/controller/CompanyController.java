@@ -7,6 +7,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.io.IOException;
+import java.util.List;
 
 @RestController
 public class CompanyController {
@@ -18,7 +19,7 @@ public class CompanyController {
     }
 
     @GetMapping("/api/companies/search")
-    public String searchCompanies(@RequestParam String query) throws IOException {
+    public List<Company> searchCompanies(@RequestParam String query) throws IOException, InterruptedException {
         return companySearchService.search(query);
     }
 }
