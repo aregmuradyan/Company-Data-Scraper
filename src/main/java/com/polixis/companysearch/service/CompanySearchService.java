@@ -3,6 +3,9 @@ package com.polixis.companysearch.service;
 import com.polixis.companysearch.model.Company;
 import com.polixis.companysearch.model.Officer;
 import com.polixis.companysearch.model.Psc;
+import com.polixis.companysearch.model.SearchCache;
+import com.polixis.companysearch.repository.CompanyRepository;
+import com.polixis.companysearch.repository.SearchCacheRepository;
 import org.jsoup.HttpStatusException;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
@@ -11,15 +14,33 @@ import org.jsoup.select.Elements;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
-import java.sql.SQLOutput;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
 @Service
 public class CompanySearchService {
-    private static final long REQUEST_DELAY_MS = 1000;
+    private static final long REQUEST_DELAY_MS = 500;
+    private static final String USER_AGENT =
+            "Polixis-Company-Search-Internship-Task/1.0 " +
+                    "(educational scraper; contact: aregmuradyan.dev@gmail.com)";
+    private final CompanyRepository companyRepository;
+    private final SearchCacheRepository searchCacheRepository;
+
+    public CompanySearchService(CompanyRepository companyRepository, SearchCacheRepository searchCacheRepository) {
+        this.companyRepository = companyRepository;
+        this.searchCacheRepository = searchCacheRepository;
+    }
 
     public List<Company> search(String query) throws IOException, InterruptedException {
+        var cachedSearch = searchCacheRepository.findById(query);
+        if (cachedSearch.isPresent()) {
+            SearchCache cache = cachedSearch.get();
+
+            if (cache.getCachedAt().isAfter(LocalDateTime.now().minusHours(24))) {
+                return cache.getCompanies();
+            }
+        }
         List<Company> companies = new ArrayList<>();
 
         String nextPageUrl =
@@ -29,11 +50,11 @@ public class CompanySearchService {
         while (nextPageUrl != null && companies.size() < 100) {
             Thread.sleep(REQUEST_DELAY_MS);
             Document document = Jsoup.connect(nextPageUrl)
-                    .userAgent("Company-Search-Service/1.0")
+                    .userAgent(USER_AGENT)
                     .get();
             Elements results = document.select("li.type-company");
 
-            //System.out.println("Results on page: " + results.size());
+            System.out.println("Results on page: " + results.size());
 
             for (Element result : results) {
                 if (companies.size() >= 100) {
@@ -55,19 +76,10 @@ public class CompanySearchService {
 
                         String pscUrl = fullCompanyUrl + "/persons-with-significant-control";
 
+                        //COMPANY
                         Thread.sleep(REQUEST_DELAY_MS);
                         Document companyDocument = Jsoup.connect(fullCompanyUrl)
-                                .userAgent("Company-Search-Service/1.0")
-                                .get();
-
-                        Thread.sleep(REQUEST_DELAY_MS);
-                        Document officersDocument = Jsoup.connect(officersUrl)
-                                .userAgent("Company-Search-Service/1.0")
-                                .get();
-
-                        Thread.sleep(REQUEST_DELAY_MS);
-                        Document pscDocument = Jsoup.connect(pscUrl)
-                                .userAgent("Polixis-Company-Search-Internship-Task/1.0 (educational scraper; contact: aregmuradyan.dev@gmail.com)")
+                                .userAgent(USER_AGENT)
                                 .get();
 
                         Element statusElement = companyDocument.selectFirst("#company-status");
@@ -82,6 +94,14 @@ public class CompanySearchService {
                         Element creationDateElement = companyDocument.selectFirst("#company-creation-date");
                         String creationDate = creationDateElement != null ? creationDateElement.text() : null;
 
+                        Element meta = result.selectFirst("p.meta.crumbtrail");
+                        String companyNumber = "";
+
+                        //OFFICERS
+                        Thread.sleep(REQUEST_DELAY_MS);
+                        Document officersDocument = Jsoup.connect(officersUrl)
+                                .userAgent(USER_AGENT)
+                                .get();
                         Elements appointments = officersDocument.select(".appointments-list > div");
                         List<Officer> officers = new ArrayList<>();
                         for (Element appointment : appointments) {
@@ -100,23 +120,33 @@ public class CompanySearchService {
 
                         }
 
-                        Elements pscElements = pscDocument.select(".appointments-list > div");
+                        //PSCs
                         List<Psc> pscs = new ArrayList<>();
+                        try {
+                            Thread.sleep(REQUEST_DELAY_MS);
+                            Document pscDocument = Jsoup.connect(pscUrl)
+                                    .userAgent(USER_AGENT)
+                                    .get();
 
-                        for (Element pscElement : pscElements) {
-                            Element nameElement = pscElement.selectFirst("[id^=psc-name-]");
-                            Element natureOfControlElement = pscElement.selectFirst("[id^=psc-noc-]");
+                            Elements pscElements = pscDocument.select(".appointments-list > div");
 
-                            String name = nameElement != null ? nameElement.text() : null;
-                            String natureOfControl = natureOfControlElement != null
-                                    ? natureOfControlElement.text()
-                                    : null;
+                            for (Element pscElement : pscElements) {
+                                Element nameElement = pscElement.selectFirst("[id^=psc-name-]");
+                                Element natureOfControlElement = pscElement.selectFirst("[id^=psc-noc-]");
 
-                            pscs.add(new Psc(name, natureOfControl));
+                                String name = nameElement != null ? nameElement.text() : null;
+                                String natureOfControl = natureOfControlElement != null
+                                        ? natureOfControlElement.text()
+                                        : null;
+
+                                pscs.add(new Psc(name, natureOfControl));
+                            }
+                        } catch (HttpStatusException e) {
+                            System.out.println(
+                                    "PSC unavailable for " + companyNumber +
+                                            " - HTTP " + e.getStatusCode()
+                            );
                         }
-
-                        Element meta = result.selectFirst("p.meta.crumbtrail");
-                        String companyNumber = "";
 
                         if (meta != null) {
                             String metaText = meta.text();
@@ -134,7 +164,7 @@ public class CompanySearchService {
                                 pscs
                         );
                         companies.add(company);
-                        //System.out.println("Companies collected: " + companies.size());
+                        System.out.println("Companies collected: " + companies.size());
                     }
                 } catch (HttpStatusException e){
                         System.out.println("Skipping company due to HTTP " + e.getStatusCode());
@@ -150,6 +180,14 @@ public class CompanySearchService {
                 }
             }
         }
+        companyRepository.saveAll(companies);
+        SearchCache searchCache = new SearchCache(
+                query,
+                LocalDateTime.now(),
+                companies
+        );
+
+        searchCacheRepository.save(searchCache);
         return companies;
     }
 }
