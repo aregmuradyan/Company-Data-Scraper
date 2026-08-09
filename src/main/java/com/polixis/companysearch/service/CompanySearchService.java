@@ -21,9 +21,12 @@ import java.util.List;
 @Service
 public class CompanySearchService {
     private static final long REQUEST_DELAY_MS = 500;
+    private static final int MAX_COMPANIES = 100;
+    private static final int CACHE_HOURS = 24;
     private static final String USER_AGENT =
-            "Polixis-Company-Search-Internship-Task/1.0 " +
-                    "(educational scraper; contact: aregmuradyan.dev@gmail.com)";
+            "Polixis-Company-Search-Internship-Task/1.0 | (educational scraper; contact: aregmuradyan.dev@gmail.com)";
+    private static final String BASE_URL =
+            "https://find-and-update.company-information.service.gov.uk";
     private final CompanyRepository companyRepository;
     private final SearchCacheRepository searchCacheRepository;
 
@@ -32,32 +35,28 @@ public class CompanySearchService {
         this.searchCacheRepository = searchCacheRepository;
     }
 
-    public List<Company> search(String query) throws IOException, InterruptedException {
+    public List<Company> search(String query, boolean forceRefresh) throws IOException, InterruptedException {
         var cachedSearch = searchCacheRepository.findById(query);
-        if (cachedSearch.isPresent()) {
+        if (!forceRefresh && cachedSearch.isPresent()) {
             SearchCache cache = cachedSearch.get();
 
-            if (cache.getCachedAt().isAfter(LocalDateTime.now().minusHours(24))) {
+            if (cache.getCachedAt().isAfter(LocalDateTime.now().minusHours(CACHE_HOURS))) {
                 return cache.getCompanies();
             }
         }
         List<Company> companies = new ArrayList<>();
 
-        String nextPageUrl =
-                "https://find-and-update.company-information.service.gov.uk/search/companies?q="
-                        + query;
+        String nextPageUrl = BASE_URL + "/search/companies?q=" + query;
 
-        while (nextPageUrl != null && companies.size() < 100) {
+        while (nextPageUrl != null && companies.size() < MAX_COMPANIES) {
             Thread.sleep(REQUEST_DELAY_MS);
             Document document = Jsoup.connect(nextPageUrl)
                     .userAgent(USER_AGENT)
                     .get();
             Elements results = document.select("li.type-company");
 
-            System.out.println("Results on page: " + results.size());
-
             for (Element result : results) {
-                if (companies.size() >= 100) {
+                if (companies.size() >= MAX_COMPANIES) {
                     break;
                 }
 
@@ -69,8 +68,7 @@ public class CompanySearchService {
                         String companyUrl = link.attr("href");
 
                         String fullCompanyUrl =
-                                "https://find-and-update.company-information.service.gov.uk"
-                                        + companyUrl;
+                                BASE_URL + companyUrl;
 
                         String officersUrl = fullCompanyUrl + "/officers";
 
@@ -96,6 +94,11 @@ public class CompanySearchService {
 
                         Element meta = result.selectFirst("p.meta.crumbtrail");
                         String companyNumber = "";
+
+                        if (meta != null) {
+                            String metaText = meta.text();
+                            companyNumber = metaText.split(" - ")[0];
+                        }
 
                         //OFFICERS
                         Thread.sleep(REQUEST_DELAY_MS);
@@ -148,11 +151,6 @@ public class CompanySearchService {
                             );
                         }
 
-                        if (meta != null) {
-                            String metaText = meta.text();
-                            companyNumber = metaText.split(" - ")[0];
-                        }
-
                         Company company = new Company(
                                 companyNumber,
                                 companyName,
@@ -164,20 +162,16 @@ public class CompanySearchService {
                                 pscs
                         );
                         companies.add(company);
-                        System.out.println("Companies collected: " + companies.size());
                     }
-                } catch (HttpStatusException e){
+                } catch (HttpStatusException e) {
                         System.out.println("Skipping company due to HTTP " + e.getStatusCode());
                     }
-
-                Element nextPageElement = document.selectFirst("#next-page");
-                if (nextPageElement != null) {
-                    nextPageUrl =
-                            "https://find-and-update.company-information.service.gov.uk"
-                                    + nextPageElement.attr("href");
-                } else {
-                    nextPageUrl = null;
-                }
+            }
+            Element nextPageElement = document.selectFirst("#next-page");
+            if (nextPageElement != null) {
+                nextPageUrl = BASE_URL + nextPageElement.attr("href");
+            } else {
+                nextPageUrl = null;
             }
         }
         companyRepository.saveAll(companies);

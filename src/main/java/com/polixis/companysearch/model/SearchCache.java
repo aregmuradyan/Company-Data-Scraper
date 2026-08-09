@@ -17,6 +17,6 @@ public class SearchCache {
     @Id
     private String query;
     private LocalDateTime cachedAt;
-    @ManyToMany
+    @ManyToMany(fetch = FetchType.EAGER)
     private List<Company> companies;
 }

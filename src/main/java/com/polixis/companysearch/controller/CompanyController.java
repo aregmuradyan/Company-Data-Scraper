@@ -19,7 +19,11 @@ public class CompanyController {
     }
 
     @GetMapping("/api/companies/search")
-    public List<Company> searchCompanies(@RequestParam String query) throws IOException, InterruptedException {
-        return companySearchService.search(query);
+    public List<Company> searchCompanies(
+            @RequestParam String query,
+            @RequestParam(defaultValue = "false") boolean forceRefresh
+    ) throws IOException, InterruptedException {
+
+        return companySearchService.search(query, forceRefresh);
     }
 }
