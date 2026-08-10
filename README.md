@@ -39,7 +39,7 @@ Search results are stored in a persistent H2 database and cached for 24 hours to
 GET /api/companies/search
 ```
 
-### Parameters<img width="580" height="317" alt="image" src="https://github.com/user-attachments/assets/e074427b-1ca6-4257-9e0e-a96d941749ac" />
+### Parameters
 
 
 | Parameter | Required | Description |
