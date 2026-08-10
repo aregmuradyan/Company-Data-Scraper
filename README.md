@@ -39,7 +39,8 @@ Search results are stored in a persistent H2 database and cached for 24 hours to
 GET /api/companies/search
 ```
 
-### Parameters
+### Parameters<img width="580" height="317" alt="image" src="https://github.com/user-attachments/assets/e074427b-1ca6-4257-9e0e-a96d941749ac" />
+
 
 | Parameter | Required | Description |
 |---|---|---|
@@ -201,7 +202,7 @@ The repository includes the Maven Wrapper, so installing Maven separately is not
 ### Clone
 
 ```bash
-git clone <repository-url>
+git clone https://github.com/aregmuradyan/Polixis-Task-Company-Data-Search-Service
 cd Polixis-Task-Company-Data-Search-Service
 ```
 
