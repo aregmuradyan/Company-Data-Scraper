@@ -4,10 +4,9 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 @SpringBootApplication
-public class CompanySearchServiceApplication {
+public class CompanyDataScraperApplication {
 
-	public static void main(String[] args) {
-		SpringApplication.run(CompanySearchServiceApplication.class, args);
-	}
-
+    public static void main(String[] args) {
+        SpringApplication.run(CompanyDataScraperApplication.class, args);
+    }
 }

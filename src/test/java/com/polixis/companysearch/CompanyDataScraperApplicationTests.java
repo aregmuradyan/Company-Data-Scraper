@@ -16,7 +16,7 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.*;
 
 @SpringBootTest
-class CompanySearchServiceApplicationTests {
+class CompanyDataScraperApplicationTests {
     @Autowired
     private CompanySearchService companySearchService;
 

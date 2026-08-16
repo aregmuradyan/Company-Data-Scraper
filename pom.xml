@@ -9,7 +9,7 @@
 		<relativePath/> <!-- lookup parent from repository -->
 	</parent>
 	<groupId>com.polixis</groupId>
-	<artifactId>company-search-service</artifactId>
+	<artifactId>company-data-scraper</artifactId>
 	<version>0.0.1-SNAPSHOT</version>
 	<name/>
 	<description/>

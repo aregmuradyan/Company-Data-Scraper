@@ -1,35 +1,35 @@
-# Company Data Search Service
+# UK Company Data Scraper
 
-A Spring Boot service that searches for UK companies by scraping Companies House and returns structured JSON containing company details, officers, and Persons with Significant Control (PSCs).
+A Spring Boot application that searches for UK companies by scraping the public Companies House website and returns structured JSON containing company details, officers, and Persons with Significant Control (PSCs).
 
-Search results are stored in a persistent H2 database and cached for 24 hours to avoid repeatedly requesting the same data from Companies House.
+Search results are stored in a persistent H2 database and cached for 24 hours to reduce repeated requests to Companies House while keeping the returned information reasonably fresh.
 
 ## Tech Stack
 
-- Java 21
-- Spring Boot
-- Spring Web
-- Spring Data JPA / Hibernate
-- Jsoup
-- H2 Database
-- Lombok
-- JUnit 5
-- Maven
+* Java 21
+* Spring Boot
+* Spring Web
+* Spring Data JPA / Hibernate
+* Jsoup
+* H2 Database
+* Lombok
+* JUnit 5
+* Maven
 
 ## Features
 
-- Search UK companies by query
-- Scrape company overview information
-- Retrieve company officers
-- Retrieve Persons with Significant Control (PSCs)
-- Follow Companies House search pagination
-- Maximum of 100 fully fetched companies per query
-- Persistent H2 storage
-- 24-hour search cache
-- Optional `forceRefresh` cache bypass
-- Graceful handling of scraping failures
-- 500 ms delay between Companies House requests
-- Meaningful User-Agent on outgoing requests
+* Search UK companies by name or query
+* Scrape company overview information
+* Retrieve company officers
+* Retrieve Persons with Significant Control (PSCs)
+* Follow Companies House search pagination
+* Fetch a maximum of 100 companies per query
+* Store company data in a persistent H2 database
+* Cache search results for 24 hours
+* Manually bypass the cache using `forceRefresh`
+* Handle individual scraping failures gracefully
+* Apply a 500 ms delay between Companies House requests
+* Send a meaningful User-Agent with outgoing requests
 
 ## API
 
@@ -41,10 +41,10 @@ GET /api/companies/search
 
 ### Parameters
 
-| Parameter | Required | Description |
-|---|---|---|
-| `query` | Yes | Company search query |
-| `forceRefresh` | No | Bypasses the cache when set to `true`. Defaults to `false`. |
+| Parameter      | Required | Description                                                 |
+| -------------- | -------- | ----------------------------------------------------------- |
+| `query`        | Yes      | Company search query                                        |
+| `forceRefresh` | No       | Bypasses the cache when set to `true`. Defaults to `false`. |
 
 ### Example Request
 
@@ -96,53 +96,64 @@ If no companies match the query, the endpoint returns:
 
 ## Data Collected
 
-For each company, the service collects:
+For each company, the application collects:
 
-- Company number
-- Company name
-- Status
-- Company type
-- Creation date
-- Registered address
-- Officers
-  - Name
-  - Role
-  - Appointment date
-- Persons with Significant Control
-  - Name
-  - Nature of control
+* Company number
+* Company name
+* Status
+* Company type
+* Creation date
+* Registered address
+* Officers
 
-PSC information is treated as optional. If the PSC page cannot be retrieved, the company can still be returned with an empty PSC list.
+    * Name
+    * Role
+    * Appointment date
+* Persons with Significant Control
+
+    * Name
+    * Nature of control
+
+PSC information is treated as optional. If a PSC page cannot be retrieved, the rest of the company data can still be returned with an empty PSC list.
 
 ## How It Works
 
-For a new search query, the service first searches Companies House and parses the matching companies.
+When a search request is received, the application first checks whether the same query has a valid cached result.
 
-For each result, it follows the company's page to retrieve overview information, then requests the corresponding officers and PSC pages. It continues through the available search pages until there are no more results or 100 companies have been fully collected.
+If a fresh cache entry exists, its associated companies are returned immediately.
 
-The completed records are stored in H2 and returned to the caller as JSON.
+Otherwise, the service searches Companies House and parses the matching results. For each company, it retrieves the company overview page, officers page, and PSC page.
 
-On later requests for the same query, the cache is checked before Companies House is contacted.
+The scraper continues through search-result pages until there are no more pages or 100 companies have been collected.
+
+The resulting company records are persisted in H2, the search query and timestamp are stored in the search cache, and the final list is returned as JSON.
 
 ## Caching and Freshness
 
-Each search query is stored together with the time it was fetched and the companies returned by that search.
+Each search query is stored together with:
 
-Cached results remain valid for **24 hours**. If the same query is requested during that period, the stored companies are returned directly without making another Companies House request.
+* the time it was fetched
+* the companies returned by the search
 
-After 24 hours, the query is scraped again and the stored data is refreshed.
+Cached results are considered valid for **24 hours**.
 
-I chose 24 hours as a simple compromise between keeping company information reasonably current and avoiding unnecessary requests to a free public service.
+If the same query is requested during that period, the application returns the stored companies without contacting Companies House again.
 
-The optional `forceRefresh` parameter allows the caller to bypass a still-valid cache when fresh data is specifically required:
+After 24 hours, the cache is considered stale and the data is scraped again.
+
+A 24-hour lifetime provides a simple balance between avoiding unnecessary requests and preventing company information from remaining outdated indefinitely.
+
+Fresh data can also be requested manually using:
 
 ```text
 /api/companies/search?query=tesco&forceRefresh=true
 ```
 
+When `forceRefresh=true`, the existing cache is bypassed and a fresh scrape is performed.
+
 ## Database
 
-The project uses an embedded, file-backed **H2 database**:
+The application uses an embedded, file-backed **H2 database**:
 
 ```properties
 spring.datasource.url=jdbc:h2:file:./data/companysearch
@@ -150,60 +161,56 @@ spring.datasource.driver-class-name=org.h2.Driver
 spring.jpa.hibernate.ddl-auto=update
 ```
 
-Because the database is file-backed, cached searches remain available after the application is stopped and restarted.
+Because the database is file-backed, stored companies and cached searches survive application restarts.
 
-No external database installation is required.
+No external database server needs to be installed.
 
 The generated `data/` directory is excluded from Git.
 
-Automated tests use a separate in-memory H2 database so they do not modify the application's persistent data.
+Automated tests use a separate in-memory H2 database so test execution does not modify persistent application data.
 
-## Companies House Politeness
+## Companies House Request Handling
 
-The scraper is intentionally conservative when interacting with Companies House.
+The scraper deliberately limits how aggressively it interacts with the public Companies House service.
 
-Every outgoing request uses a meaningful User-Agent:
+Every outgoing request uses a descriptive User-Agent:
 
 ```text
-Polixis-Company-Search-Internship-Task/1.0 | (educational scraper; contact: aregmuradyan.dev@gmail.com)
+UK-Company-Data-Scraper/1.0 | (educational project; contact: aregmuradyan.dev@gmail.com)
 ```
 
-A **500 ms delay** is inserted between requests, and a single search stops after a maximum of **100 fully fetched companies**.
+A **500 ms delay** is inserted between requests.
 
-The delay was particularly important during development because sending requests more aggressively resulted in HTTP 403 responses.
+Each search also stops after a maximum of **100 fully fetched companies**.
+
+During development, shorter delays resulted in HTTP 403 responses, so throttling also improves reliability in addition to reducing load on the external service.
 
 ## Failure Handling
 
-Because the application depends on an external website, individual requests can fail.
+External HTML scraping is not completely predictable, so the application handles several failure cases.
 
-If an HTTP error occurs while fetching a company's required data, that company is skipped rather than terminating the entire search.
+If an HTTP error occurs while retrieving required data for an individual company, that company can be skipped without terminating the entire search.
 
-PSC retrieval is handled separately. Since PSC data is optional, a failure on the PSC page does not cause the whole company to be discarded.
+PSC retrieval is handled separately because PSC data is optional. If the PSC request fails, the company can still be returned with an empty PSC list.
 
-Missing HTML fields are checked before their values are accessed, allowing unavailable fields to be represented as `null` rather than causing a parsing failure.
-
-## Optional Extensions Implemented
-
-Two optional extensions were implemented:
-
-**Failure handling** — individual scraping failures are handled so that one problematic record does not unnecessarily terminate the whole search.
-
-**`forceRefresh` flag** — callers can explicitly bypass the 24-hour cache and request fresh Companies House data.
+HTML elements are also checked for `null` before their contents are accessed. Missing fields therefore result in `null` values rather than a `NullPointerException`.
 
 ## Running the Project
 
 ### Requirements
 
-- Java 21
+* Java 21
 
-The repository includes the Maven Wrapper, so installing Maven separately is not required.
+The project includes the Maven Wrapper, so a separate Maven installation is not required.
 
 ### Clone
 
 ```bash
-git clone <repository-url>
-cd Polixis-Task-Company-Data-Search-Service
+git clone https://github.com/aregmuradyan/uk-company-data-scraper.git
+cd uk-company-data-scraper
 ```
+
+Replace the repository URL above if you choose a different final GitHub repository name.
 
 ### Windows
 
@@ -217,7 +224,7 @@ mvnw.cmd spring-boot:run
 ./mvnw spring-boot:run
 ```
 
-The application will start on:
+The application starts by default on:
 
 ```text
 http://localhost:8080
@@ -245,14 +252,14 @@ mvnw.cmd test
 ./mvnw test
 ```
 
-The current tests verify that the Spring application context starts correctly and that a fresh cached search can be retrieved through the service.
+The tests verify that the Spring application context can start successfully and that fresh cached search results can be returned through the service.
 
-Tests use a temporary in-memory H2 database rather than the application's persistent database.
+Tests use a temporary in-memory H2 database.
 
 ## Project Structure
 
 ```text
-src/main/java/com/polixis/companysearch/
+src/main/java/com/aregmuradyan/companydatascraper/
 ├── controller/
 │   └── CompanyController
 ├── model/
@@ -265,53 +272,78 @@ src/main/java/com/polixis/companysearch/
 │   └── SearchCacheRepository
 ├── service/
 │   └── CompanySearchService
-└── CompanySearchServiceApplication
+└── CompanyDataScraperApplication
 ```
 
-The controller exposes the HTTP endpoint, the service contains the scraping and caching logic, the model classes represent persisted data, and the repositories provide database access through Spring Data JPA.
+The application follows a simple layered structure:
 
-## Hardest Part
+* **Controller** — exposes the HTTP API.
+* **Service** — contains scraping, caching, freshness, pagination, and failure-handling logic.
+* **Models / Entities** — represent company data and cache records.
+* **Repositories** — provide persistence through Spring Data JPA.
 
-The hardest part was making the scraper behave reliably while interacting responsibly with Companies House.
+## Technical Decisions
 
-A single search can generate many requests because each company requires separate overview, officer, and PSC requests. During development, making requests too quickly resulted in HTTP 403 responses. Adding a meaningful User-Agent, introducing a delay between requests, limiting the number of fully fetched companies, and handling failed requests individually made the behavior considerably more reliable.
+### H2
 
-Caching also introduced a useful JPA issue during testing. The companies associated with a cached search were initially lazily loaded. Accessing them after the Hibernate session had closed caused a `LazyInitializationException`. Since the companies are always needed when a cached search is returned, that relationship was changed to eager loading.
+H2 keeps local setup lightweight while still providing relational persistence and integration with JPA/Hibernate.
 
-## What I Would Improve With More Time
+A file-backed database is used rather than an in-memory database so cached searches remain available after restarting the application.
 
-The current solution focuses on keeping the required behavior straightforward and understandable. With more time, I would improve several areas:
+### Company Number as Primary Key
 
-- Add dedicated parsing tests using saved HTML fixtures instead of depending on live Companies House pages.
-- Add structured API error responses using a global exception handler.
-- Add controlled retry/backoff behavior for temporary HTTP failures.
-- Move values such as the 24-hour cache lifetime, 500 ms request delay, and 100-company limit into application configuration.
-- Replace the remaining console output with structured application logging.
-- Add explicit input validation and URI/query encoding.
-- Prevent two simultaneous requests for the same uncached query from both starting separate scraping operations.
-- Add deduplication/merging if the same company appears multiple times.
-- Consider PostgreSQL or another production-oriented database if the service were deployed at a larger scale.
+Companies House company numbers are used as company identifiers because they uniquely and consistently identify registered companies.
 
-I intentionally kept these outside the current implementation rather than adding additional complexity that was not necessary for the scope of the task.
+### Separate Search Cache
+
+Company records and search records are persisted separately.
+
+A company can appear in multiple different searches, while each search can return many companies. This allows the application to reuse persisted company entities while keeping track of which results belong to each cached query.
+
+### Eager Cache Loading
+
+Companies associated with a cached search are loaded eagerly.
+
+During development, lazy loading caused a `LazyInitializationException` when cached companies were accessed after the Hibernate persistence session had closed.
+
+Because the companies are always required when returning a cache result, eager loading is appropriate for this relationship.
+
+## Challenges Encountered
+
+One of the main challenges was interacting reliably with an external website.
+
+A broad query can generate many HTTP requests because each company requires separate company, officer, and PSC requests. Sending these requests too quickly resulted in HTTP 403 responses.
+
+This was addressed by adding request throttling, a descriptive User-Agent, a maximum result limit, and individual failure handling.
+
+Another useful challenge involved JPA relationship loading. Cached company records initially used lazy loading, which failed when the associated companies were accessed after the Hibernate session had closed. Changing this particular relationship to eager loading resolved the issue.
 
 ## Known Limitations
 
-The application scrapes Companies House HTML, so changes to the website's HTML structure or selectors may require updates to the parser.
+* The application depends on the current Companies House HTML structure. Changes to page markup or CSS selectors may require updates to the scraper.
+* Fresh searches can take noticeable time because requests are intentionally throttled.
+* Cached information may be up to 24 hours old unless `forceRefresh=true` is used.
+* Two identical uncached requests received simultaneously can both begin scraping before the first request has populated the cache.
+* Individual companies may be skipped when required external requests fail.
+* PSC information can be unavailable for some results.
 
-Fresh searches can take some time because requests are intentionally throttled and each company may require several separate page requests.
+## Possible Future Improvements
 
-Cached data can be up to 24 hours old unless `forceRefresh=true` is used.
+Possible next steps include:
 
-Two simultaneous requests for the same uncached query can currently both begin scraping before either request has written its result to the cache.
-
-## AI Assistance
-
-I used ChatGPT as a learning and development assistant during the project, mainly to discuss Spring/JPA concepts, debug issues, review implementation choices, and improve documentation.
-
-I implemented and tested the code myself and made sure I understood the components and decisions included in the final solution.
+* Add dedicated parsing tests using saved HTML fixtures
+* Add structured API error responses with a global exception handler
+* Add retry and exponential-backoff behavior for temporary external failures
+* Move cache lifetime, request delay, result limit, and base URL into configuration
+* Replace remaining console output with structured logging
+* Add explicit query validation and URI encoding
+* Prevent duplicate simultaneous scrapes for the same query
+* Add explicit deduplication and merging logic
+* Add a simple frontend for searching and viewing company data
+* Replace H2 with PostgreSQL if the application grows beyond local or demonstration use
 
 ## Summary
 
-The service provides a small Spring Boot API for searching UK company data while combining information from several Companies House pages into structured JSON.
+UK Company Data Scraper is a small Spring Boot application that combines information from several Companies House pages into structured JSON while adding persistent storage, caching, freshness control, pagination, request throttling, and basic failure handling.
 
-The implementation focuses on the core requirements of the task while adding persistent caching, freshness control, failure handling, and a manual refresh option without introducing unnecessary infrastructure.
+The project is designed to remain lightweight enough to run locally while demonstrating a complete flow from HTTP request to external data retrieval, persistence, and JSON response.

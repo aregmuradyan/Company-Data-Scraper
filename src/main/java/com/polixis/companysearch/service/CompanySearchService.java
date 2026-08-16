@@ -24,7 +24,8 @@ public class CompanySearchService {
     private static final int MAX_COMPANIES = 100;
     private static final int CACHE_HOURS = 24;
     private static final String USER_AGENT =
-            "Polixis-Company-Search-Internship-Task/1.0 | (educational scraper; contact: aregmuradyan.dev@gmail.com)";
+            "Company-Data-Scraper/1.0 | " +
+                    "(educational project; contact: aregmuradyan.dev@gmail.com)";
     private static final String BASE_URL =
             "https://find-and-update.company-information.service.gov.uk";
     private final CompanyRepository companyRepository;
