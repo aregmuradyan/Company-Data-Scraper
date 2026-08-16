@@ -1,4 +1,4 @@
-# Company Data Search Service
+# Company Data Scraper
 
 A Spring Boot service that searches for UK companies by scraping Companies House and returns structured JSON containing company details, officers, and Persons with Significant Control (PSCs).
 
@@ -166,7 +166,7 @@ The scraper is intentionally conservative when interacting with Companies House.
 Every outgoing request uses a meaningful User-Agent:
 
 ```text
-Polixis-Company-Search-Internship-Task/1.0 | (educational scraper; contact: aregmuradyan.dev@gmail.com)
+(educational scraper; contact: aregmuradyan.dev@gmail.com)
 ```
 
 A **500 ms delay** is inserted between requests, and a single search stops after a maximum of **100 fully fetched companies**.
@@ -202,8 +202,8 @@ The repository includes the Maven Wrapper, so installing Maven separately is not
 ### Clone
 
 ```bash
-git clone https://github.com/aregmuradyan/Polixis-Task-Company-Data-Search-Service
-cd Polixis-Task-Company-Data-Search-Service
+git clone https://github.com/aregmuradyan/Company-Data-Scraper
+cd Company-Data-Scraper
 ```
 
 ### Windows
@@ -253,7 +253,7 @@ Tests use a temporary in-memory H2 database rather than the application's persis
 ## Project Structure
 
 ```text
-src/main/java/com/polixis/companysearch/
+src/main/java/com/aregmuradyan/companysearch/
 ├── controller/
 │   └── CompanyController
 ├── model/
