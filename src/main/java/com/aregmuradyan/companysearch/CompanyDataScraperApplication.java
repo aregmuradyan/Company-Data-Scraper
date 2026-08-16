@@ -1,4 +1,4 @@
-package com.polixis.companysearch;
+package com.aregmuradyan.companysearch;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;

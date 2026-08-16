@@ -1,10 +1,10 @@
-package com.polixis.companysearch;
+package com.aregmuradyan.companysearch;
 
-import com.polixis.companysearch.model.Company;
-import com.polixis.companysearch.model.SearchCache;
-import com.polixis.companysearch.repository.CompanyRepository;
-import com.polixis.companysearch.repository.SearchCacheRepository;
-import com.polixis.companysearch.service.CompanySearchService;
+import com.aregmuradyan.companysearch.model.Company;
+import com.aregmuradyan.companysearch.model.SearchCache;
+import com.aregmuradyan.companysearch.repository.CompanyRepository;
+import com.aregmuradyan.companysearch.repository.SearchCacheRepository;
+import com.aregmuradyan.companysearch.service.CompanySearchService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;

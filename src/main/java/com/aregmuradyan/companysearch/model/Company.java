@@ -1,4 +1,4 @@
-package com.polixis.companysearch.model;
+package com.aregmuradyan.companysearch.model;
 
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;

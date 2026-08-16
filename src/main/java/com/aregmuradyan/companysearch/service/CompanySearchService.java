@@ -1,11 +1,11 @@
-package com.polixis.companysearch.service;
+package com.aregmuradyan.companysearch.service;
 
-import com.polixis.companysearch.model.Company;
-import com.polixis.companysearch.model.Officer;
-import com.polixis.companysearch.model.Psc;
-import com.polixis.companysearch.model.SearchCache;
-import com.polixis.companysearch.repository.CompanyRepository;
-import com.polixis.companysearch.repository.SearchCacheRepository;
+import com.aregmuradyan.companysearch.model.Company;
+import com.aregmuradyan.companysearch.model.Officer;
+import com.aregmuradyan.companysearch.model.Psc;
+import com.aregmuradyan.companysearch.model.SearchCache;
+import com.aregmuradyan.companysearch.repository.CompanyRepository;
+import com.aregmuradyan.companysearch.repository.SearchCacheRepository;
 import org.jsoup.HttpStatusException;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
